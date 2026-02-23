@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 
 @dataclass
 class HandoffNote:
-    """LLM-distilled handoff — summary sheet, not a raw transcript dump."""
+    """LLM-distilled handoff -summary sheet, not a raw transcript dump."""
 
     from_agent: str
     to_agent: str

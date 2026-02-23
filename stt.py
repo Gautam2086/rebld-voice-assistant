@@ -4,7 +4,7 @@ from config import settings
 
 
 def transcribe(wav_bytes: bytes) -> str:
-    """REST (batch) instead of WebSocket — adds ~200ms but simpler to reason about.
+    """REST (batch) instead of WebSocket -adds ~200ms but simpler to reason about.
     Production upgrade: Deepgram WebSocket for real-time partials while user speaks."""
     if not wav_bytes:
         return ""

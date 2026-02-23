@@ -1,4 +1,4 @@
-"""Bob & Alice Voice Assistant — CLI push-to-talk with agent transfer."""
+"""Bob & Alice Voice Assistant -CLI push-to-talk with agent transfer."""
 
 import time
 
@@ -12,7 +12,7 @@ from voice import play_audio, record_audio
 
 def print_banner():
     print("\n" + "=" * 55)
-    print("  🏠  Bob & Alice — Home Renovation Voice Assistant")
+    print("  🏠  Bob & Alice -Home Renovation Voice Assistant")
     print("=" * 55)
     print("  Press Enter to start/stop recording.")
     print('  Say "transfer me to Alice/Bob" to switch agents.')

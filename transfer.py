@@ -18,7 +18,7 @@ class TransferResult:
 
 
 def detect_transfer(text: str, current_agent: str) -> TransferResult:
-    """Regex-first intent detection — <1ms vs ~800ms for an LLM classifier.
+    """Regex-first intent detection -<1ms vs ~800ms for an LLM classifier.
     Tradeoff: won't catch implicit intent like 'I have a question about permits',
     but keeps the voice loop snappy. See DESIGN.md for more on this decision."""
     lower = text.lower().strip()
@@ -116,7 +116,7 @@ def generate_handoff_note(state: ConversationState, target: str) -> HandoffNote:
     )
 
     prompt = f"""Analyze this conversation between the user and {state.active_agent}, and create a handoff summary for {target}.
-Focus on NEW information from {state.active_agent}'s portion of the conversation — what was discussed, decided, or advised. Do not just repeat facts from earlier agents.
+Focus on NEW information from {state.active_agent}'s portion of the conversation -what was discussed, decided, or advised. Do not just repeat facts from earlier agents.
 Return ONLY valid JSON with these fields:
 {{
   "summary": "1-2 sentence summary of what {state.active_agent} covered",
