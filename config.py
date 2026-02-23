@@ -19,7 +19,7 @@ class Settings(BaseSettings):
 
     # Audio
     sample_rate: int = 16000
-    record_seconds: int = 10  # max recording length
+    record_seconds: int = 10
 
 
 settings = Settings()

@@ -39,19 +39,30 @@ def record_audio() -> bytes:
     return _numpy_to_wav(audio, settings.sample_rate)
 
 
-def play_audio(mp3_bytes: bytes) -> None:
-    """Play MP3 bytes through speakers using pydub + sounddevice."""
-    from pydub import AudioSegment
+def play_audio(wav_bytes: bytes) -> None:
+    """Play WAV bytes through speakers using sounddevice."""
+    import wave
 
-    seg = AudioSegment.from_mp3(io.BytesIO(mp3_bytes))
-    samples = np.array(seg.get_array_of_samples(), dtype=np.float32)
+    with wave.open(io.BytesIO(wav_bytes), "rb") as wf:
+        sample_rate = wf.getframerate()
+        channels = wf.getnchannels()
+        sample_width = wf.getsampwidth()
+        raw = wf.readframes(wf.getnframes())
 
-    # handle stereo
-    if seg.channels == 2:
-        samples = samples.reshape((-1, 2))
+    if sample_width == 2:
+        dtype = np.int16
+    elif sample_width == 4:
+        dtype = np.int32
+    else:
+        dtype = np.int16
 
-    samples = samples / (2**15)  # normalize int16 -> float32
-    sd.play(samples, samplerate=seg.frame_rate)
+    samples = np.frombuffer(raw, dtype=dtype).astype(np.float32)
+    samples = samples / (2 ** (sample_width * 8 - 1))
+
+    if channels > 1:
+        samples = samples.reshape((-1, channels))
+
+    sd.play(samples, samplerate=sample_rate)
     sd.wait()
 
 

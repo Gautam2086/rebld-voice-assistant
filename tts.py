@@ -13,11 +13,12 @@ def _get_client() -> OpenAI:
 
 
 def synthesize(text: str, voice: str = "echo") -> bytes:
-    """Convert text to speech using OpenAI TTS. Returns MP3 bytes."""
+    """Convert text to speech using OpenAI TTS. Returns WAV bytes."""
     client = _get_client()
     resp = client.audio.speech.create(
         model="tts-1",
         voice=voice,
         input=text,
+        response_format="wav",
     )
     return resp.content

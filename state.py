@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 
 @dataclass
 class HandoffNote:
+    """LLM-distilled handoff — summary sheet, not a raw transcript dump."""
+
     from_agent: str
     to_agent: str
     summary: str
@@ -31,6 +33,9 @@ class HandoffNote:
 
 @dataclass
 class ConversationState:
+    # handoff_notes is append-only: after Bob->Alice->Bob, Bob sees BOTH notes.
+    # prevents the "telephone game" problem where context degrades with each transfer.
+
     active_agent: str = "Bob"
     history: list[dict[str, str]] = field(default_factory=list)
     handoff_notes: list[HandoffNote] = field(default_factory=list)

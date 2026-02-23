@@ -18,7 +18,9 @@ class TransferResult:
 
 
 def detect_transfer(text: str, current_agent: str) -> TransferResult:
-    """Detect transfer intent from user text using regex. Instant, no LLM latency."""
+    """Regex-first intent detection — <1ms vs ~800ms for an LLM classifier.
+    Tradeoff: won't catch implicit intent like 'I have a question about permits',
+    but keeps the voice loop snappy. See DESIGN.md for more on this decision."""
     lower = text.lower().strip()
 
     # Explicit: "transfer me to Alice", "let me talk to Bob", "go back to Bob"

@@ -4,10 +4,13 @@ from config import settings
 
 
 def transcribe(wav_bytes: bytes) -> str:
-    """Transcribe WAV audio bytes to text using Deepgram REST API (nova-3)."""
+    """REST (batch) instead of WebSocket — adds ~200ms but simpler to reason about.
+    Production upgrade: Deepgram WebSocket for real-time partials while user speaks."""
     if not wav_bytes:
         return ""
 
+    # nova-3: Deepgram's latest model, best accuracy for conversational english
+    # smart_format: adds punctuation and casing, makes transcripts more readable
     resp = httpx.post(
         "https://api.deepgram.com/v1/listen",
         params={"model": "nova-3", "smart_format": "true"},

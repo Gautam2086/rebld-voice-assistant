@@ -54,7 +54,7 @@ def respond(state: ConversationState) -> str:
 
     system = agent_cfg["system_prompt"]
 
-    # Inject handoff context if available
+    # Inject all accumulated handoff notes so the agent can pick up seamlessly
     handoff_ctx = state.handoff_context()
     if handoff_ctx:
         system += f"\n\nPrevious handoff notes (use this context to continue the conversation seamlessly):\n{handoff_ctx}"
