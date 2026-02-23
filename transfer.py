@@ -115,13 +115,14 @@ def generate_handoff_note(state: ConversationState, target: str) -> HandoffNote:
         f"{m['role'].upper()}: {m['content']}" for m in state.history[-20:]
     )
 
-    prompt = f"""Analyze this conversation and create a handoff summary for {target}.
+    prompt = f"""Analyze this conversation between the user and {state.active_agent}, and create a handoff summary for {target}.
+Focus on NEW information from {state.active_agent}'s portion of the conversation — what was discussed, decided, or advised. Do not just repeat facts from earlier agents.
 Return ONLY valid JSON with these fields:
 {{
-  "summary": "1-2 sentence summary of what was discussed",
-  "key_facts": ["fact1", "fact2"],
-  "open_questions": ["question1"],
-  "recommendations": ["rec1"]
+  "summary": "1-2 sentence summary of what {state.active_agent} covered",
+  "key_facts": ["new facts learned or confirmed"],
+  "open_questions": ["unresolved questions remaining"],
+  "recommendations": ["{state.active_agent}'s advice or next steps"]
 }}
 
 Conversation:

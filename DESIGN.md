@@ -40,9 +40,9 @@
 | File | Responsibility |
 |------|---------------|
 | `main.py` | CLI loop: record → STT → transfer check → LLM → TTS → play |
-| `agents.py` | Agent class, Bob/Alice system prompts, OpenRouter LLM calls |
+| `agents.py` | Bob/Alice system prompts, OpenRouter LLM calls |
 | `transfer.py` | Transfer detection (regex), handoff note generation (LLM) |
-| `voice.py` | Mic recording (sounddevice) + audio playback (pydub) |
+| `voice.py` | Mic recording (sounddevice) + audio playback (wave + sounddevice) |
 | `stt.py` | Deepgram REST transcription |
 | `tts.py` | OpenAI TTS synthesis |
 | `state.py` | ConversationState + HandoffNote dataclasses |
@@ -94,24 +94,27 @@ This is injected into the receiving agent's context, so they can greet with full
 
 The `handoff_notes` list only grows. After Bob→Alice→Bob, Bob sees **both** handoff notes — what he originally discussed AND what Alice covered. This prevents context loss across multiple transfers.
 
-## Tradeoffs & What I'd Improve
-
-### Current Tradeoffs
+## Tradeoffs
 
 1. **Push-to-talk vs. VAD**: Push-to-talk is simpler but less natural. Voice Activity Detection (VAD) with barge-in would be more conversational but adds complexity (silence thresholds, false triggers).
 
 2. **REST APIs vs. streaming**: Currently using REST for both STT and TTS. Streaming would reduce time-to-first-byte significantly — Deepgram's WebSocket API provides real-time transcription, and streaming TTS could start playing while the full response is still generating.
 
-3. **Full history vs. summarization**: The full message history is passed to the LLM on every turn. For long conversations this hits context limits and increases cost. A sliding window with periodic summarization would be more scalable.
+3. **Full history vs. summarization**: The full message history is passed to the LLM on every turn. For long conversations, this hits context limits and increases cost. A sliding window with periodic summarization would be more scalable.
 
 4. **Regex transfer detection vs. LLM**: Regex is fast but brittle. It won't catch implicit transfer intent like "I have a question about permits" (which should probably go to Alice). An LLM classifier would catch these but at a latency cost.
 
-### With More Time
+## Reflection
 
-- **Streaming pipeline**: Deepgram WebSocket for real-time STT, streaming TTS with chunked playback. This would reduce end-to-end latency from ~3-4s to ~1-2s.
-- **VAD + barge-in**: Use silero-vad to detect speech start/stop automatically, and allow the user to interrupt the agent mid-response.
-- **Intent classifier**: A lightweight local model for transfer intent that catches implicit requests without LLM latency.
-- **Conversation summarization**: Periodically summarize older messages to keep context window manageable while preserving key information.
-- **Observability**: Structured logging with timing for each pipeline stage (record → STT → transfer check → LLM → TTS → play) to identify bottlenecks.
-- **Error recovery**: Graceful handling of API failures (retry with backoff, fallback to text-only mode if TTS fails).
-- **Testing**: Unit tests for transfer detection regex, integration tests for the handoff note generation, end-to-end tests with recorded audio samples.
+The biggest challenge was getting transfers to feel seamless. My first attempt just passed the raw conversation history to the new agent, and the result was agents repeating the same questions — clearly not a real handoff. Switching to LLM-generated handoff notes with structured fields (key_facts, open_questions, recommendations) made a big difference. It mirrors how a real contractor handoff works: you pass along a summary sheet, not a full transcript.
+
+Latency was the other main concern. Every extra API call in the voice loop is noticeable. That's why I went with regex for transfer detection instead of an LLM classifier — it's instant and covers the common patterns well enough. In production, I'd consider a small fine-tuned model (distilbert-scale) as a middle ground: better coverage than regex without the full LLM latency hit.
+
+The part I'm least satisfied with is the audio pipeline. Push-to-talk works, but it's not how people naturally talk. With more time, I'd move to a LiveKit-based architecture with VAD (silero-vad) for automatic speech detection, streaming STT via Deepgram's WebSocket API for real-time partials, and chunked TTS playback so the user hears the response while it's still generating. That would bring end-to-end latency from ~3-4s down to ~1-2s and support barge-in naturally.
+
+I did add pipeline latency logging (each stage prints its timing in ms) and a session summary on exit that shows turns, transfers, handoff trail, and LLM-generated key takeaways. Small touches, but they make the experience feel more complete and give visibility into where time is spent.
+
+Other things I'd improve with more time:
+- **Conversation summarization** — periodically compress older messages to keep context manageable
+- **Error recovery** — retry with backoff on API failures, fallback to text-only if TTS is down
+- **Testing** — unit tests for the transfer regex, integration tests for handoff note generation

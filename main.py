@@ -1,6 +1,6 @@
 """Bob & Alice Voice Assistant — CLI push-to-talk with agent transfer."""
 
-import sys
+import time
 
 from agents import get_voice, respond
 from stt import transcribe
@@ -20,13 +20,21 @@ def print_banner():
     print("=" * 55 + "\n")
 
 
+def timed(label, fn, *args, **kwargs):
+    """Run a function and print how long it took."""
+    t0 = time.time()
+    result = fn(*args, **kwargs)
+    ms = int((time.time() - t0) * 1000)
+    print(f"     ⏱  {label}: {ms}ms")
+    return result
+
+
 def handle_transfer(state: ConversationState, target: str) -> str:
     """Execute a transfer: generate handoff note, switch agent, return greeting."""
     old_agent = state.active_agent
     print(f"\n  📋 Generating handoff note from {old_agent}...")
 
-    # Generate structured handoff note via LLM
-    note = generate_handoff_note(state, target)
+    note = timed("Handoff note", generate_handoff_note, state, target)
     state.handoff_notes.append(note)
 
     print(f"  ✅ Handoff note created:")
@@ -45,9 +53,64 @@ def handle_transfer(state: ConversationState, target: str) -> str:
         f"Here is the handoff note:\n{note.format()}",
     )
 
-    greeting = respond(state)
+    greeting = timed("Greeting LLM", respond, state)
     state.add_message("assistant", greeting)
     return greeting
+
+
+def print_session_summary(state: ConversationState) -> None:
+    """Print a summary of the conversation when the user exits."""
+    user_msgs = [m for m in state.history if m["role"] == "user"]
+    if not user_msgs:
+        return
+
+    print("\n" + "=" * 55)
+    print("  📊  Session Summary")
+    print("=" * 55)
+    print(f"  Turns: {len(user_msgs)}")
+    print(f"  Transfers: {len(state.handoff_notes)}")
+
+    if state.handoff_notes:
+        print("  Handoff trail:")
+        for note in state.handoff_notes:
+            summary = note.summary[:80].rsplit(" ", 1)[0] + "..." if len(note.summary) > 80 else note.summary
+            print(f"    {note.from_agent} → {note.to_agent}: {summary}")
+
+    # Generate a quick wrap-up from the LLM
+    from openai import OpenAI
+    from config import settings
+
+    conv_text = "\n".join(
+        f"{m['role'].upper()}: {m['content']}"
+        for m in state.history[-20:]
+        if m["role"] in ("user", "assistant")
+    )
+
+    try:
+        client = OpenAI(
+            api_key=settings.openrouter_api_key,
+            base_url=settings.openrouter_base_url,
+        )
+        resp = client.chat.completions.create(
+            model=settings.llm_model,
+            messages=[{
+                "role": "user",
+                "content": f"Summarize this home renovation conversation in 2-3 bullet points. "
+                f"Focus on decisions made and next steps:\n{conv_text}",
+            }],
+            max_tokens=200,
+            temperature=0.3,
+        )
+        summary = resp.choices[0].message.content.strip()
+        # Indent each line of the summary consistently
+        lines = summary.split("\n")
+        print("\n  Key takeaways:")
+        for line in lines:
+            print(f"    {line.strip()}")
+    except Exception:
+        pass
+
+    print("=" * 55 + "\n")
 
 
 def main():
@@ -76,8 +139,7 @@ def main():
             continue
 
         # Transcribe
-        print("  📝 Transcribing...")
-        text = transcribe(wav)
+        text = timed("STT", transcribe, wav)
         if not text.strip():
             print("  ⚠️  Couldn't understand that. Try again.")
             continue
@@ -89,14 +151,14 @@ def main():
         if transfer.reason == "invalid":
             msg = f"I don't know an agent named {transfer.target}. I can transfer you to {'Alice' if agent == 'Bob' else 'Bob'}."
             print(f"  [{agent}]: {msg}")
-            audio = synthesize(msg, voice)
+            audio = timed("TTS", synthesize, msg, voice)
             play_audio(audio)
             continue
 
         if transfer.reason == "self":
             msg = f"You're already talking to {agent}! How can I help?"
             print(f"  [{agent}]: {msg}")
-            audio = synthesize(msg, voice)
+            audio = timed("TTS", synthesize, msg, voice)
             play_audio(audio)
             continue
 
@@ -105,7 +167,7 @@ def main():
             # Farewell from current agent
             farewell = f"Sure! Let me transfer you to {target} now."
             print(f"  [{agent}]: {farewell}")
-            audio = synthesize(farewell, voice)
+            audio = timed("TTS", synthesize, farewell, voice)
             play_audio(audio)
 
             # Execute transfer
@@ -113,14 +175,13 @@ def main():
             greeting = handle_transfer(state, target)
             new_voice = get_voice(target)
             print(f"  [{target}]: {greeting}")
-            audio = synthesize(greeting, new_voice)
+            audio = timed("TTS", synthesize, greeting, new_voice)
             play_audio(audio)
             continue
 
         # Normal conversation
         state.add_message("user", text)
-        print(f"  🤔 {agent} is thinking...")
-        response = respond(state)
+        response = timed("LLM", respond, state)
         state.add_message("assistant", response)
 
         # Check if agent suggests transfer
@@ -129,8 +190,11 @@ def main():
             print(f"  💡 {agent} suggested transferring to {suggestion.target}")
 
         print(f"  [{agent}]: {response}")
-        audio = synthesize(response, voice)
+        audio = timed("TTS", synthesize, response, voice)
         play_audio(audio)
+
+    # Session summary on exit
+    print_session_summary(state)
 
 
 if __name__ == "__main__":

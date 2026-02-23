@@ -2,26 +2,16 @@
 
 A CLI push-to-talk voice assistant with two agents that can seamlessly transfer conversations while maintaining full context.
 
-**Bob** (Intake & Planner) — Friendly, asks clarifying questions, produces checklists and plans.
-**Alice** (Technical Specialist) — Structured, risk-aware, handles permits, costs, materials, sequencing.
+- **Bob** (Intake & Planner) — Friendly, asks clarifying questions, produces checklists and plans.
+- **Alice** (Technical Specialist) — Structured, risk-aware, handles permits, costs, materials, sequencing.
 
 ## Setup
 
 ### 1. Install dependencies
 
 ```bash
-cd jenny-voice
-pip install -r requirements.txt
-```
-
-You also need **ffmpeg** for audio playback (pydub dependency):
-
-```bash
-# macOS
-brew install ffmpeg
-
-# Ubuntu/Debian
-sudo apt install ffmpeg
+cd rebld-voice-assistant
+pip3 install -r requirements.txt
 ```
 
 ### 2. Configure API keys
@@ -37,7 +27,7 @@ cp .env.example .env
 ### 3. Run
 
 ```bash
-python main.py
+python3 main.py
 ```
 
 ## How to Use
